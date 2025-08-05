@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CHROME EXTENSION FOR TIME TRACKING AND PRODUCTIVITY ANALYTICS</title>
+  <link rel="manifest" href="manifest.json"> 
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      width: 300px;
+      margin: 0;
+      padding: 20px;
+      background: greenyellow;
+    }
+    h1 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    #timer {
+      font-size: 24px;
+      margin: 10px 0;
+      font-weight: bold;
+      text-align: center;
+    }
+    canvas {
+      width: 100%;
+      height: auto;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      font-size: 14px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <center><h1>Time Tracker</h1></center>
+  <div id="timer">00:00:00</div>
+  <canvas id="chart" width="280" height="200"></canvas>
+  <button id="reset">Reset Time</button>
+
+  <script>
+    let totalSeconds = 0;
+    let interval = null;
+
+    // Load previous time
+    chrome.storage.local.get(['timeSpent'], function(result) {
+      totalSeconds = result.timeSpent || 0;
+      updateDisplay();
+    });
+
+    // Update every second
+    interval = setInterval(() => {
+      totalSeconds++;
+      chrome.storage.local.set({ timeSpent: totalSeconds });
+      updateDisplay();
+    }, 1000);
+
+    function updateDisplay() {
+      const hours = Math.floor(totalSeconds / 3600).toString().padStart(2, '0');
+      const minutes = Math.floor((totalSeconds % 3600) / 60).toString().padStart(2, '0');
+      const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+      document.getElementById('timer').innerText = `${hours}:${minutes}:${seconds}`;
+      drawChart();
+    }
+
+    function drawChart() {
+      const ctx = document.getElementById('chart').getContext('2d');
+      const productive = Math.min(totalSeconds, 3600); // Max 1 hour productive
+      const unproductive = totalSeconds - productive;
+
+      const total = productive + unproductive;
+      const productiveAngle = (productive / total) * 2 * Math.PI;
+      const unproductiveAngle = (unproductive / total) * 2 * Math.PI;
+
+      ctx.clearRect(0, 0, 280, 200);
+
+      // Productive slice
+      ctx.beginPath();
+      ctx.moveTo(140, 100);
+      ctx.fillStyle = '#4CAF50';
+      ctx.arc(140, 100, 80, 0, productiveAngle);
+      ctx.fill();
+
+      // Unproductive slice
+      ctx.beginPath();
+      ctx.moveTo(140, 100);
+      ctx.fillStyle = '#f44336';
+      ctx.arc(140, 100, 80, productiveAngle, productiveAngle + unproductiveAngle);
+      ctx.fill();
+    }
+
+    document.getElementById('reset').addEventListener('click', () => {
+      totalSeconds = 0;
+      chrome.storage.local.set({ timeSpent: 0 });
+      updateDisplay();
+    });
+  </script>
+</body>
+</html>
